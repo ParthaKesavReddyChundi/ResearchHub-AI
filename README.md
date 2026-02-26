@@ -1,207 +1,205 @@
-# 🚀 ResearchHub AI  
-### Agentic AI-Powered Research Intelligence System
+# ResearchHub AI 🚀
 
-ResearchHub AI is an **Agentic AI backend system** designed to analyze multiple research papers, extract structured knowledge, compare models, detect research gaps, and automatically generate literature reviews.
+ResearchHub AI is an Agentic AI-powered research automation backend designed to go beyond simple chatbot interactions. 
 
-This is not just a GenAI summarizer — it is a **plan-driven research agent** with structured memory, deterministic analytics, and reflection-based validation.
+It is built as a tool-using autonomous research agent capable of planning, extracting, comparing, retrieving, validating, and synthesizing academic research papers.
 
----
+This project focuses on building the intelligence layer of a full-stack research platform.
 
-# 🧠 What Makes This Agentic?
 
-Unlike traditional GenAI systems that only generate text:
+------------------------------------------------------------
+🔷 PROJECT VISION
+------------------------------------------------------------
 
-✔ Dynamic plan-driven execution  
-✔ Tool-based structured extraction  
-✔ Deterministic comparison engine  
-✔ Model ranking by performance  
-✔ Cross-paper structured analytics  
-✔ Reflection + self-evaluation step  
-✔ Literature review synthesis  
+ResearchHub AI is not a chatbot wrapper.
 
-The system behaves like a **research assistant agent**, not just a text generator.
+It is an Agentic Research Assistant System that:
 
----
+• Dynamically plans tool execution  
+• Extracts structured research data  
+• Performs deterministic comparisons  
+• Uses Retrieval-Augmented Generation (RAG)  
+• Maintains persistent multi-workspace vector databases  
+• Performs reflection-based validation  
 
-# ⚙️ Core Features
+The goal is to evolve into a semi-autonomous research assistant platform.
 
-### 📄 1. Structured Research Extraction
-Extracts:
+
+------------------------------------------------------------
+🔷 CURRENT ARCHITECTURE
+------------------------------------------------------------
+
+Backend: FastAPI  
+LLM: Groq (LLaMA 3.3 70B Versatile)  
+Embeddings: SentenceTransformers (all-MiniLM-L6-v2)  
+Vector DB: FAISS  
+Storage: Persistent per-workspace filesystem storage  
+
+
+------------------------------------------------------------
+🔷 FEATURES IMPLEMENTED
+------------------------------------------------------------
+
+✅ 1. Unified Structured Research Extraction
+
+Extracts research papers into strict JSON format:
+
 - Metadata
-- Methodology
-- Experimental Results
+- Method
+- Results
 - Limitations
 
-Returns strict JSON.
-
----
-
-### 📊 2. Deterministic Comparison Engine
-Automatically builds:
-- Performance ranking table
-- Improvement percentage sorting
-- Dataset count comparison
-- Training configuration comparison
-
----
-
-### 📚 3. Multi-Paper Literature Review
-Upload up to 5 papers →  
-System:
-- Extracts structured objects
-- Compares methodologies
-- Identifies trends
-- Detects research gaps
-- Produces formal literature review
-
----
-
-### 🤖 4. Dynamic Research Agent (`/research-agent`)
-The system:
-1. Creates execution plan
-2. Calls tools dynamically
-3. Builds structured memory
-4. Runs deterministic analytics
-5. Synthesizes literature review
-6. Reflects and improves output
-
----
-
-# 🏗 Tech Stack
-
-- **FastAPI** (Backend API)
-- **Groq LLM (LLaMA 3.3 70B)**
-- **Python**
-- **Structured JSON extraction**
-- **Dynamic planning architecture**
-
----
-
-# 📂 Project Structure
+Strict JSON enforcement with validation.
 
 
-ResearchHub-AI/
-│
-├── backend/
-│ ├── main.py
-│ ├── requirements.txt
-│ └── .env (not included in repo)
-│
-├── frontend/ (optional UI)
-│
-├── README.md
-└── .gitignore
+------------------------------------------------------------
+
+✅ 2. Agentic Planner System
+
+The /research-agent endpoint:
+
+• Generates execution plan  
+• Validates plan against allowed tools  
+• Executes only approved tools  
+• Builds structured memory  
+• Generates deterministic comparison tables  
+• Optionally synthesizes analysis  
+• Runs reflection loop for validation  
+
+This implements true tool-based Agentic AI logic.
 
 
----
+------------------------------------------------------------
 
-# 🚀 Setup Instructions
+✅ 3. Deterministic Comparison Layer
 
-## 1️⃣ Clone the Repository
+Automatically:
 
-```bash
-git clone https://github.com/YOUR_USERNAME/ResearchHub-AI.git
-cd ResearchHub-AI/backend
-2️⃣ Create Virtual Environment
-python -m venv venv
-venv\Scripts\activate      # Windows
-# OR
-source venv/bin/activate   # Mac/Linux
-3️⃣ Install Dependencies
-pip install -r requirements.txt
-4️⃣ Add Environment Variables
+• Ranks models by improvement percentage  
+• Compares optimizers  
+• Compares epochs  
+• Counts datasets  
+• Surfaces GPU requirements  
 
-Create a .env file inside backend/:
+Prevents purely generative comparisons.
 
-GROQ_API_KEY=your_api_key_here
 
-⚠️ Never upload .env to GitHub.
+------------------------------------------------------------
 
-5️⃣ Run the Server
+✅ 4. Multi-Workspace RAG System
+
+• PDF ingestion with chunking + overlap  
+• SentenceTransformer embeddings  
+• FAISS vector search  
+• Workspace isolation  
+• Multiple papers per workspace  
+• Context-grounded answering  
+• Strict anti-hallucination prompt  
+
+Example storage structure:
+
+storage/
+    workspace_id/
+        index.faiss
+        chunks.json
+        meta.json
+
+
+------------------------------------------------------------
+
+✅ 5. Persistent FAISS Storage
+
+• FAISS index saved to disk  
+• Chunks saved to disk  
+• Metadata saved per workspace  
+• Auto-load on server restart  
+• Cold-start recovery supported  
+
+
+------------------------------------------------------------
+🔷 ENDPOINTS AVAILABLE
+------------------------------------------------------------
+
+POST /ingest-paper  
+POST /query-paper  
+POST /research-agent  
+
+Additional structured extraction tools are internally supported.
+
+
+------------------------------------------------------------
+🔷 AGENTIC AI DESIGN PRINCIPLES
+------------------------------------------------------------
+
+ResearchHub AI follows:
+
+• Dynamic plan-driven execution  
+• Tool validation before execution  
+• Structured memory building  
+• Deterministic reasoning layers  
+• Reflection-based output validation  
+• Retrieval grounding to prevent hallucination  
+
+This project is architected as a Research Agent System, not a simple LLM interface.
+
+
+------------------------------------------------------------
+🔷 CURRENT LIMITATIONS
+------------------------------------------------------------
+
+• No user authentication (JWT not implemented)
+• No PostgreSQL database yet
+• No conversation history persistence
+• No frontend UI (backend only)
+• No hybrid keyword + vector search
+• Planner still fully LLM-driven
+
+
+------------------------------------------------------------
+🔷 ROADMAP
+------------------------------------------------------------
+
+Planned Next Steps:
+
+• PostgreSQL integration  
+• JWT-based authentication  
+• Workspace-user mapping  
+• Conversation persistence  
+• Hybrid search (vector + metadata)  
+• Planner heuristics improvement  
+• Frontend (React + TypeScript + Tailwind)  
+• External academic database integration (arXiv, PubMed)  
+
+
+------------------------------------------------------------
+🔷 PROJECT STATUS
+------------------------------------------------------------
+
+Backend Intelligence Layer: ~65%  
+RAG System: ~75%  
+Platform Infrastructure: ~30%  
+Frontend: 0%  
+Security Layer: 0%  
+
+
+------------------------------------------------------------
+🔷 HOW TO RUN
+------------------------------------------------------------
+
+1. Clone the repository
+2. Create virtual environment
+3. Install requirements
+4. Add GROQ_API_KEY to .env
+5. Run:
+
 uvicorn main:app --reload
 
-Open browser:
+Open:
 
 http://127.0.0.1:8000/docs
 
-Swagger UI will appear.
 
-📌 Main API Endpoint
-🔬 Research Agent
-POST /research-agent
-Upload:
+------------------------------------------------------------
 
-1–5 research papers (PDF)
-
-Provide:
-Goal: Analyze papers and create literature review with comparison and research gaps.
-Output:
-
-Execution plan
-
-Structured memory
-
-Deterministic comparison table
-
-Reflection report
-
-Final literature review
-
-🧠 Example Use Cases
-
-Analyze 20 research papers
-
-Compare CNN vs Transformer architectures
-
-Detect common experimental weaknesses
-
-Identify recurring research gaps
-
-Rank models by improvement %
-
-🛡 Security Notes
-
-.env is ignored
-
-API keys are not committed
-
-Virtual environments are excluded
-
-🎯 Future Roadmap
-
-RAG-based interactive research chat
-
-Persistent research memory
-
-Cross-paper trend analytics
-
-Visualization dashboard
-
-Vector database integration
-
-👨‍💻 Contributors
-
-Built as part of an Agentic AI research intelligence system.
-
-⭐ If You Clone This
-
-Please:
-
-Add your own API key
-
-Do not upload .env
-
-Open issues if you improve architecture
-
-
----
-
-# 🔥 What You Should Do Now
-
-1. Replace `YOUR_USERNAME` with your actual GitHub username.
-2. Commit the README:
-
-```bash
-git add README.md
-git commit -m "Added professional README"
-git push
+ResearchHub AI is under active development.
+The long-term goal is to build a fully autonomous academic research assistant platform.

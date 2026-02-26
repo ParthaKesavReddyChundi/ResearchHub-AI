@@ -6,8 +6,19 @@ import os
 import re
 import json
 import pdfplumber
-from typing import List
-from typing_extensions import Annotated
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
+
+# ---------- RAG INITIALIZATION ----------
+
+# ---------- RAG INITIALIZATION (WORKSPACE ISOLATED) ----------
+
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+dimension = 384
+
+# Workspace dictionary
+workspaces = {}
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +26,8 @@ load_dotenv()
 app = FastAPI(title="ResearchHub AI", version="1.0")
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
 
 # ---------- LLM HELPER FUNCTION ----------
 def call_llm(system_prompt, user_prompt, max_tokens=500, temperature=0.3):
@@ -27,6 +40,10 @@ def call_llm(system_prompt, user_prompt, max_tokens=500, temperature=0.3):
         temperature=temperature,
         max_tokens=max_tokens
     )
+
+    # Print token usage for monitoring
+    print("TOKEN USAGE:", response.usage)
+
     return response.choices[0].message.content
 
 
@@ -38,429 +55,124 @@ def extract_pdf_text(uploaded_file: UploadFile):
             text += page.extract_text() or ""
     return text
 
+def chunk_text(text, chunk_size=800, overlap=150):
+    chunks = []
+    start = 0
 
-class ChatRequest(BaseModel):
-    message: str
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += chunk_size - overlap
 
-
-@app.get("/")
-async def root():
-    return {"message": "ResearchHub AI backend is running 🚀"}
-
-
-# ---------- GENERAL CHAT ----------
-@app.post("/chat")
-async def chat_with_ai(request: ChatRequest):
-    result = call_llm(
-        "You are a helpful research assistant.",
-        request.message,
-        max_tokens=500
-    )
-    return {"response": result}
+    return chunks
 
 
-# ---------- STRUCTURED SUMMARY ----------
-@app.post("/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...)):
+
+
+# ---------- PAPER INGESTION FOR RAG ----------
+@app.post("/ingest-paper")
+async def ingest_paper(workspace_id: str, file: UploadFile = File(...)):
+
     full_text = extract_pdf_text(file)
 
     if not full_text.strip():
         return {"error": "No readable text found in PDF."}
 
-    chunk_size = 3000
-    chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
-    chunks = chunks[:12]
+    clean_text = re.sub(r"\s+", " ", full_text)
+    clean_text = clean_text.replace("", " ")
+    clean_text = clean_text.strip()
 
-    chunk_summaries = []
+    chunks = chunk_text(clean_text)
 
-    for chunk in chunks:
-        summary = call_llm(
-            "Summarize this section of a research paper clearly and concisely.",
-            chunk,
-            max_tokens=350
-        )
-        chunk_summaries.append(summary)
+    if not chunks:
+        return {"error": "No valid chunks created."}
 
-    combined_summary = "\n\n".join(chunk_summaries)
+    embeddings = embedding_model.encode(chunks)
+    embeddings = np.array(embeddings).astype("float32")
 
-    final_summary = call_llm(
-        "Create a structured final research summary with:\n1) Problem\n2) Method\n3) Key Contributions\n4) Results.",
-        combined_summary,
-        max_tokens=700
-    )
+    if workspace_id not in workspaces:
+        workspaces[workspace_id] = {
+            "index": faiss.IndexFlatL2(dimension),
+            "chunks": [],
+            "papers": [],
+            "num_vectors": 0
+        }
 
-    return {"summary": final_summary}
+    workspace = workspaces[workspace_id]
 
+    workspace["index"].add(embeddings)
+    workspace["chunks"].extend(chunks)
+    workspace["papers"].append(file.filename)
+    workspace["num_vectors"] += len(chunks)
 
-# ---------- SIMPLIFY ----------
-@app.post("/simplify-pdf")
-async def simplify_pdf(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-    text = full_text[:8000]
+    return {
+        "status": "Paper ingested successfully",
+        "workspace_id": workspace_id,
+        "num_chunks_added": len(chunks),
+        "total_vectors_in_workspace": workspace["num_vectors"]
+    }
+class QueryRequest(BaseModel):
+    question: str
+    top_k: int = 6
+# ---------- QUERYING WITH RAG ----------
+@app.post("/query-paper")
+async def query_paper(workspace_id: str, request: QueryRequest):
 
-    simplified = call_llm(
-        "You simplify research papers into short explanations for beginners.",
+    if workspace_id not in workspaces:
+        return {"error": "Workspace does not exist."}
+
+    workspace = workspaces[workspace_id]
+
+    if workspace["index"].ntotal == 0:
+        return {"error": "No papers ingested in this workspace."}
+
+    question_embedding = embedding_model.encode([request.question])
+    question_embedding = np.array(question_embedding).astype("float32")
+
+    distances, indices = workspace["index"].search(question_embedding, request.top_k)
+
+    retrieved_chunks = []
+
+    for idx in indices[0]:
+        if 0 <= idx < len(workspace["chunks"]):
+            retrieved_chunks.append(workspace["chunks"][idx])
+
+    if not retrieved_chunks:
+        return {"error": "No relevant chunks found."}
+
+    context = "\n\n".join(retrieved_chunks)
+
+    answer = call_llm(
+        "You are a research assistant. Answer strictly using the provided context.",
         f"""
-Simplify into:
-- Max 150 words
-- Very simple language
-- No jargon
-- Core idea only
+Context:
+{context}
 
-{text}
+Question:
+{request.question}
+
+Rules:
+- Use ONLY the context.
+- If not explicitly mentioned, say: "Insufficient information in the provided paper."
 """,
-        max_tokens=300,
-        temperature=0.4
+        max_tokens=500,
+        temperature=0.2
     )
 
-    return {"simplified_explanation": simplified}
-
-
-# ---------- RESEARCH GAPS ----------
-@app.post("/research-gaps")
-async def research_gaps(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-
-    chunk_size = 3000
-    chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
-    chunks = chunks[:10]
-
-    summaries = []
-
-    for chunk in chunks:
-        summary = call_llm(
-            "Summarize this research section.",
-            chunk,
-            max_tokens=300
-        )
-        summaries.append(summary)
-
-    combined_summary = "\n".join(summaries)
-
-    gaps = call_llm(
-        "Identify research gaps, limitations, and future research directions.",
-        combined_summary,
-        max_tokens=600,
-        temperature=0.4
-    )
-
-    return {"research_gaps": gaps}
-
-
-# ---------- KEY CONTRIBUTIONS ----------
-@app.post("/key-contributions")
-async def key_contributions(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-    text = full_text[:8000]
-
-    contributions = call_llm(
-        "Extract structured key contributions.",
-        f"""
-Identify:
-1) Core problem
-2) Main innovation
-3) Technical contributions
-4) Why important
-
-{text}
-""",
-        max_tokens=500
-    )
-
-    return {"key_contributions": contributions}
-
-
-# ---------- KEYWORDS ----------
-@app.post("/extract-keywords")
-async def extract_keywords(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-    text = full_text[:8000]
-
-    keywords = call_llm(
-        "Extract top technical keywords.",
-        f"Extract 10-15 important keywords:\n\n{text}",
-        max_tokens=300
-    )
-
-    return {"keywords": keywords}
-
-
-# ---------- PAPER COMPARISON ----------
-@app.post("/compare-papers")
-async def compare_papers(
-    file1: UploadFile = File(...),
-    file2: UploadFile = File(...)
-):
-    text1 = extract_pdf_text(file1)
-    text2 = extract_pdf_text(file2)
-
-    summary1 = call_llm("Summarize this paper.", text1[:8000], max_tokens=400)
-    summary2 = call_llm("Summarize this paper.", text2[:8000], max_tokens=400)
-
-    comparison = call_llm(
-        "Compare two research papers analytically.",
-        f"""
-Paper 1:
-{summary1}
-
-Paper 2:
-{summary2}
-
-Compare:
-1) Problem
-2) Method
-3) Results
-4) Strengths & weaknesses
-5) Impact
-""",
-        max_tokens=800,
-        temperature=0.4
-    )
-
-    return {"comparison": comparison}
-
-
-# ---------- MULTI-FILE LITERATURE REVIEW ----------
-# ---------- MULTI-FILE LITERATURE REVIEW ----------
-@app.post("/literature-review")
-async def literature_review(
-    file1: UploadFile = File(None),
-    file2: UploadFile = File(None),
-    file3: UploadFile = File(None),
-    file4: UploadFile = File(None),
-    file5: UploadFile = File(None),
-):
-    files = [file1, file2, file3, file4, file5]
-    files = [f for f in files if f is not None]
-
-    if len(files) == 0:
-        return {"error": "At least one file required."}
-
-    summaries = []
-
-    for file in files:
-        text = extract_pdf_text(file)
-        if not text.strip():
-            continue
-
-        summary = call_llm(
-            "Summarize this research paper clearly.",
-            text[:8000],
-            max_tokens=400
-        )
-        summaries.append(summary)
-
-    if not summaries:
-        return {"error": "No readable content found."}
-
-    combined = "\n\n".join(summaries)
-
-    review = call_llm(
-        "Write a formal academic literature review synthesizing multiple papers.",
-        combined,
-        max_tokens=1200,
-        temperature=0.4
-    )
-
-    return {"literature_review": review}
-
-# ---------- LIMITATIONS EXTRACTOR ----------
-# ---------- LIMITATIONS EXTRACTOR (STRICT JSON PARSED) ----------
-@app.post("/extract-limitations")
-async def extract_limitations(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-
-    if not full_text.strip():
-        return {"error": "No readable text found in PDF."}
-
-    text = full_text[:15000]
-
-    raw_output = call_llm(
-        "Extract limitations in strict JSON format.",
-        f"""
-Return ONLY valid JSON.
-No explanation.
-No markdown.
-No backticks.
-
-Use this exact structure:
-
-{{
-  "computational_constraints": [],
-  "data_limitations": [],
-  "methodological_limitations": [],
-  "experimental_limitations": [],
-  "other_limitations": []
-}}
-
-Classify limitations carefully into categories.
-If none mentioned, leave empty array.
-
-Research Paper:
-{text}
-""",
-        max_tokens=900,
-        temperature=0.1
-    )
-
-    try:
-        parsed = json.loads(raw_output)
-    except:
-        return {"error": "Model did not return valid JSON.", "raw_output": raw_output}
-
-    return parsed
-
-# ---------- METHOD EXTRACTOR (STRICT JSON PARSED) ----------
-@app.post("/extract-method")
-async def extract_method(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-
-    if not full_text.strip():
-        return {"error": "No readable text found in PDF."}
-
-    text = full_text[:15000]
-
-    raw_output = call_llm(
-        "Extract methodological details in strict JSON format.",
-        f"""
-Return ONLY valid JSON.
-No markdown.
-No explanation.
-No backticks.
-
-Use this exact structure:
-
-{{
-  "model_type": "",
-  "architecture_components": [],
-  "core_technique": "",
-  "training_strategy": {{
-      "optimizer": "",
-      "learning_rate": "",
-      "batch_size": "",
-      "epochs": null,
-      "regularization": []
-  }},
-  "unique_innovations": []
-}}
-
-If any field is not mentioned, leave it empty or null.
-
-Research Paper:
-{text}
-""",
-        max_tokens=900,
-        temperature=0.1
-    )
-
-    try:
-        parsed = json.loads(raw_output)
-    except:
-        return {"error": "Model did not return valid JSON.", "raw_output": raw_output}
-
-    return parsed
-
-# ---------- RESULTS EXTRACTOR (STRICT JSON) ----------
-@app.post("/extract-results")
-async def extract_results(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-
-    if not full_text.strip():
-        return {"error": "No readable text found in PDF."}
-
-    text = full_text[:15000]
-
-    raw_output = call_llm(
-        "Extract experimental results in strict JSON format.",
-        f"""
-Return ONLY valid JSON.
-No markdown.
-No explanation.
-
-Structure:
-
-{{
-  "datasets": [],
-  "evaluation_metrics": [],
-  "performance_improvement_percent": null,
-  "baseline_model": "",
-  "parameter_reduction": null,
-  "gpu_memory_requirement": "",
-  "training_time_change": ""
-}}
-
-Research Paper:
-{text}
-""",
-        max_tokens=900,
-        temperature=0.1
-    )
-
-    try:
-        parsed = json.loads(raw_output)
-    except:
-        return {"error": "Model did not return valid JSON.", "raw_output": raw_output}
-
-    return parsed
-
-# ---------- METADATA EXTRACTOR (STRICT JSON PARSED) ----------
-@app.post("/extract-metadata")
-async def extract_metadata(file: UploadFile = File(...)):
-    full_text = extract_pdf_text(file)
-
-    if not full_text.strip():
-        return {"error": "No readable text found in PDF."}
-
-    text = full_text[:8000]
-
-    raw_output = call_llm(
-        "Extract metadata in strict JSON format.",
-        f"""
-Return ONLY valid JSON.
-No explanation.
-No markdown.
-No backticks.
-
-Use this exact structure:
-
-{{
-  "title": "",
-  "authors": [],
-  "publication_year": null,
-  "research_domain": "",
-  "task_type": "",
-  "keywords": []
-}}
-
-Guidelines:
-- Extract title from first page.
-- Extract author names if available.
-- Infer research domain (e.g., Computer Vision, NLP, Robotics).
-- Infer task type (e.g., Image Classification, Object Detection, Text Summarization).
-- Extract 5–10 important keywords if available.
-
-Research Paper:
-{text}
-""",
-        max_tokens=600,
-        temperature=0.1
-    )
-
-    try:
-        parsed = json.loads(raw_output)
-    except:
-        return {"error": "Model did not return valid JSON.", "raw_output": raw_output}
-
-    return parsed
-
-# ---------- UNIFIED RESEARCH OBJECT EXTRACTOR (STRICT JSON) ----------
+    return {
+        "workspace_id": workspace_id,
+        "retrieved_chunks": retrieved_chunks,
+        "answer": answer
+    }
+
+# ---------- UNIFIED RESEARCH OBJECT EXTRACTOR ----------
 async def extract_research_object(file: UploadFile):
     full_text = extract_pdf_text(file)
 
     if not full_text.strip():
         return {"error": "No readable text found in PDF."}
 
-    text = full_text[:15000]
+    text = full_text[:12000]  # reduced safe limit
 
     raw_output = call_llm(
         "Extract complete structured research object in strict JSON format.",
@@ -515,7 +227,7 @@ Structure:
 Research Paper:
 {text}
 """,
-        max_tokens=1400,
+        max_tokens=900,  # reduced from 1400
         temperature=0.1
     )
 
@@ -524,11 +236,13 @@ Research Paper:
     try:
         parsed = json.loads(cleaned)
     except:
-        return {"error": "Model did not return valid JSON.", "raw_output": raw_output}
+        return {"error": "Invalid JSON returned", "raw_output": raw_output}
 
     return parsed
 
-# ---------- FULL RESEARCH AGENT (UNIFIED EXTRACTION + DYNAMIC + ANALYTICS + REFLECTION) ----------
+
+# ---------- FULL RESEARCH AGENT (TRUE AGENTIC CONTROLLER) ----------
+# ---------- FULL RESEARCH AGENT (AGENTIC v3 - COMPOSITIONAL + CACHED) ----------
 @app.post("/research-agent")
 async def research_agent(
     goal: str,
@@ -544,6 +258,15 @@ async def research_agent(
     if not files:
         return {"error": "At least one file required."}
 
+    # ---------------- AVAILABLE TOOLS (EXPOSED TO PLANNER) ----------------
+    AVAILABLE_TOOLS = [
+        "extract_metadata",
+        "extract_method",
+        "extract_results",
+        "extract_limitations",
+        "synthesize_review"
+    ]
+
     # ---------------- PLANNER ----------------
     plan_raw = call_llm(
         "You are an AI research agent planner.",
@@ -552,21 +275,21 @@ Goal:
 "{goal}"
 
 Available tools:
-- extract_research_object
+- extract_metadata
+- extract_method
+- extract_results
+- extract_limitations
 - synthesize_review
 
-Create step-by-step execution plan.
-
+Choose ONLY from available tools.
 Return ONLY valid JSON:
-{{
-  "plan": [
-    {{"step": 1, "action": ""}}
-  ]
-}}
 
-No markdown.
+{{ "plan": [{{"step": 1, "action": ""}}] }}
+
 No explanation.
+No markdown.
 """,
+        max_tokens=200,
         temperature=0.2
     )
 
@@ -577,107 +300,130 @@ No explanation.
     except:
         return {"error": "Planner failed", "raw_output": plan_raw}
 
-    # ---------------- EXECUTION ----------------
-    memory = []
+    # ---------------- VALIDATE PLAN ----------------
+    validated_plan = []
+    for step in plan.get("plan", []):
+        action = step.get("action")
+        if action in AVAILABLE_TOOLS:
+            validated_plan.append(action)
 
-    for file in files:
-        paper_memory = {}
+    if not validated_plan:
+        return {"error": "No valid tools selected by planner."}
 
-        for step in plan.get("plan", []):
-            action = step.get("action", "").strip()
-            action = action.split()[0]
+    # ---------------- CACHE (UNIFIED EXTRACTION ONLY ONCE PER FILE) ----------------
+    extraction_cache = {}
+    structured_memory = []
 
-            if action == "extract_research_object":
-                paper_memory = await extract_research_object(file)
+    # If any extraction tool requested, perform unified extraction once
+    extraction_tools = [
+        "extract_metadata",
+        "extract_method",
+        "extract_results",
+        "extract_limitations"
+    ]
 
-        memory.append(paper_memory)
+    if any(tool in validated_plan for tool in extraction_tools):
 
-    # ---------------- DETERMINISTIC COMPARISON TABLE ----------------
+        for idx, file in enumerate(files):
+            full_object = await extract_research_object(file)
+
+            if "error" in full_object:
+                continue
+
+            extraction_cache[idx] = full_object
+
+            paper_data = {}
+
+            if "extract_metadata" in validated_plan:
+                paper_data["metadata"] = full_object.get("metadata")
+
+            if "extract_method" in validated_plan:
+                paper_data["method"] = full_object.get("method")
+
+            if "extract_results" in validated_plan:
+                paper_data["results"] = full_object.get("results")
+
+            if "extract_limitations" in validated_plan:
+                paper_data["limitations"] = full_object.get("limitations")
+
+            structured_memory.append(paper_data)
+
+    # ---------------- EARLY EXIT IF NO SYNTHESIS ----------------
+    if "synthesize_review" not in validated_plan:
+        return {
+            "plan": {"plan": validated_plan},
+            "structured_memory": structured_memory,
+            "note": "Goal completed without synthesis."
+        }
+
+    # ---------------- BUILD COMPARISON TABLE (ONLY IF RESULTS AVAILABLE) ----------------
     comparison_table = []
 
-    for paper in memory:
+    for paper in extraction_cache.values():
         metadata = paper.get("metadata", {})
         method = paper.get("method", {})
         results = paper.get("results", {})
         training = method.get("training_strategy", {})
 
+        improvement = results.get("performance_improvement_percent")
+
         entry = {
             "title": metadata.get("title"),
-            "improvement_percent": results.get("performance_improvement_percent"),
+            "improvement_percent": improvement,
             "optimizer": training.get("optimizer"),
             "epochs": training.get("epochs"),
             "batch_size": training.get("batch_size"),
-            "num_datasets": len(results.get("datasets", [])) if results.get("datasets") else 0,
+            "num_datasets": len(results.get("datasets", [])),
             "parameter_reduction": results.get("parameter_reduction"),
             "gpu_memory_requirement": results.get("gpu_memory_requirement")
         }
 
         comparison_table.append(entry)
 
-    # Rank by improvement percentage
-    comparison_table = sorted(
-        comparison_table,
-        key=lambda x: x.get("improvement_percent")
-        if isinstance(x.get("improvement_percent"), (int, float))
+    comparison_table.sort(
+        key=lambda x: x["improvement_percent"]
+        if isinstance(x["improvement_percent"], (int, float))
         else -1,
         reverse=True
     )
 
-    # ---------------- SYNTHESIS + REFLECTION ----------------
-    final_output = None
-    reflection_data = None
-
-    if any(step.get("action", "").startswith("synthesize_review") for step in plan.get("plan", [])):
-
-        initial_analysis = call_llm(
-            "You are an autonomous research agent synthesizing structured research data.",
-            f"""
+    # ---------------- SYNTHESIS ----------------
+    final_output = call_llm(
+        "You are an autonomous research agent synthesizing structured research data.",
+        f"""
 Research Goal:
 {goal}
 
-Structured Paper Data:
-{json.dumps(memory, indent=2)}
+Structured Data:
+{json.dumps(structured_memory)}
 
-Deterministic Comparison Table:
-{json.dumps(comparison_table, indent=2)}
+Comparison Table:
+{json.dumps(comparison_table)}
 
-Using structured data:
-
-1. Compare methodologies.
-2. Compare performance improvements.
-3. Rank models by improvement percentage.
-4. Identify common limitations.
-5. Detect emerging trends.
-6. Generate research gaps.
-7. Produce formal literature review.
-
+Generate output strictly aligned with goal.
 Be analytical and structured.
 """,
-            max_tokens=1500,
-            temperature=0.3
-        )
+        max_tokens=800,
+        temperature=0.3
+    )
+
+    # ---------------- REFLECTION (ONLY FOR COMPLEX GOALS) ----------------
+    reflection_data = None
+
+    if any(keyword in goal.lower() for keyword in ["review", "compare", "rank", "analysis"]):
 
         reflection_raw = call_llm(
-            "You are a critical AI research reviewer.",
+            "You are a critical AI reviewer.",
             f"""
-Goal:
-{goal}
+Goal: {goal}
 
 Analysis:
-{initial_analysis}
+{final_output}
 
-Check whether:
-- All requested components are covered.
-- Comparison is explicit.
-- Research gaps are meaningful.
-- Ranking is justified.
-
-Return ONLY valid JSON:
-{{
-  "sufficient": true/false,
-  "missing_points": []
-}}
+Return ONLY JSON:
+{{"sufficient": true/false, "missing_points": []}}
 """,
+            max_tokens=200,
             temperature=0.1
         )
 
@@ -690,29 +436,25 @@ Return ONLY valid JSON:
 
         if not reflection_data.get("sufficient", True):
             final_output = call_llm(
-                "You are refining research analysis.",
+                "Improve analysis based on reviewer feedback.",
                 f"""
-Goal:
-{goal}
+Goal: {goal}
 
 Previous Analysis:
-{initial_analysis}
+{final_output}
 
 Reviewer Feedback:
 {reflection_data}
-
-Improve the analysis accordingly.
 """,
-                max_tokens=1500,
+                max_tokens=800,
                 temperature=0.3
             )
-        else:
-            final_output = initial_analysis
 
     return {
-        "plan": plan,
-        "structured_memory": memory,
+        "plan": {"plan": validated_plan},
+        "structured_memory": structured_memory,
         "comparison_table": comparison_table,
         "reflection": reflection_data,
         "final_analysis": final_output
     }
+

@@ -1,205 +1,143 @@
-# ResearchHub AI 🚀
+# ResearchHub AI
 
-ResearchHub AI is an Agentic AI-powered research automation backend designed to go beyond simple chatbot interactions. 
+## Overview
 
-It is built as a tool-using autonomous research agent capable of planning, extracting, comparing, retrieving, validating, and synthesizing academic research papers.
+ResearchHub AI is an Agentic AI-powered research assistant platform designed to automate research workflows.
 
-This project focuses on building the intelligence layer of a full-stack research platform.
+This repository currently contains the **Backend Core Infrastructure**, built using:
 
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- JWT Authentication (OAuth2 Password Flow)
 
-------------------------------------------------------------
-🔷 PROJECT VISION
-------------------------------------------------------------
+The system provides:
 
-ResearchHub AI is not a chatbot wrapper.
+- Secure user authentication
+- Workspace management
+- Paper metadata management
+- Ownership-based access control
+- Modular API architecture
 
-It is an Agentic Research Assistant System that:
+---
 
-• Dynamically plans tool execution  
-• Extracts structured research data  
-• Performs deterministic comparisons  
-• Uses Retrieval-Augmented Generation (RAG)  
-• Maintains persistent multi-workspace vector databases  
-• Performs reflection-based validation  
-
-The goal is to evolve into a semi-autonomous research assistant platform.
-
-
-------------------------------------------------------------
-🔷 CURRENT ARCHITECTURE
-------------------------------------------------------------
-
-Backend: FastAPI  
-LLM: Groq (LLaMA 3.3 70B Versatile)  
-Embeddings: SentenceTransformers (all-MiniLM-L6-v2)  
-Vector DB: FAISS  
-Storage: Persistent per-workspace filesystem storage  
+# Backend Architecture
 
 
-------------------------------------------------------------
-🔷 FEATURES IMPLEMENTED
-------------------------------------------------------------
-
-✅ 1. Unified Structured Research Extraction
-
-Extracts research papers into strict JSON format:
-
-- Metadata
-- Method
-- Results
-- Limitations
-
-Strict JSON enforcement with validation.
-
-
-------------------------------------------------------------
-
-✅ 2. Agentic Planner System
-
-The /research-agent endpoint:
-
-• Generates execution plan  
-• Validates plan against allowed tools  
-• Executes only approved tools  
-• Builds structured memory  
-• Generates deterministic comparison tables  
-• Optionally synthesizes analysis  
-• Runs reflection loop for validation  
-
-This implements true tool-based Agentic AI logic.
+backend/
+│
+├── main.py
+├── database.py
+├── models.py
+├── schemas.py
+├── auth.py
+├── create_tables.py
+│
+├── routers/
+│ ├── auth_router.py
+│ ├── workspace_router.py
+│ ├── paper_router.py
+│
+└── requirements.txt
 
 
-------------------------------------------------------------
+---
 
-✅ 3. Deterministic Comparison Layer
+# Database Schema
 
-Automatically:
+Tables:
 
-• Ranks models by improvement percentage  
-• Compares optimizers  
-• Compares epochs  
-• Counts datasets  
-• Surfaces GPU requirements  
+- users
+- workspaces
+- papers
+- conversations
 
-Prevents purely generative comparisons.
+Relationships:
 
+- One user → Many workspaces
+- One workspace → Many papers
+- Ownership enforced via JWT
 
-------------------------------------------------------------
+---
 
-✅ 4. Multi-Workspace RAG System
+# Setup Guide
 
-• PDF ingestion with chunking + overlap  
-• SentenceTransformer embeddings  
-• FAISS vector search  
-• Workspace isolation  
-• Multiple papers per workspace  
-• Context-grounded answering  
-• Strict anti-hallucination prompt  
+## 1️⃣ Clone Repository
 
-Example storage structure:
+```bash
+git clone https://github.com/ParthaKesavReddyChundi/ResearchHub-AI.git
+cd ResearchHub-AI/backend
+2️⃣ Create Virtual Environment
+python -m venv venv
+venv\Scripts\activate
+3️⃣ Install Dependencies
+pip install -r requirements.txt
+4️⃣ Setup PostgreSQL
 
-storage/
-    workspace_id/
-        index.faiss
-        chunks.json
-        meta.json
+Create a database named:
 
+researchhub
 
-------------------------------------------------------------
+Create a .env file inside backend/ with:
 
-✅ 5. Persistent FAISS Storage
-
-• FAISS index saved to disk  
-• Chunks saved to disk  
-• Metadata saved per workspace  
-• Auto-load on server restart  
-• Cold-start recovery supported  
-
-
-------------------------------------------------------------
-🔷 ENDPOINTS AVAILABLE
-------------------------------------------------------------
-
-POST /ingest-paper  
-POST /query-paper  
-POST /research-agent  
-
-Additional structured extraction tools are internally supported.
-
-
-------------------------------------------------------------
-🔷 AGENTIC AI DESIGN PRINCIPLES
-------------------------------------------------------------
-
-ResearchHub AI follows:
-
-• Dynamic plan-driven execution  
-• Tool validation before execution  
-• Structured memory building  
-• Deterministic reasoning layers  
-• Reflection-based output validation  
-• Retrieval grounding to prevent hallucination  
-
-This project is architected as a Research Agent System, not a simple LLM interface.
-
-
-------------------------------------------------------------
-🔷 CURRENT LIMITATIONS
-------------------------------------------------------------
-
-• No user authentication (JWT not implemented)
-• No PostgreSQL database yet
-• No conversation history persistence
-• No frontend UI (backend only)
-• No hybrid keyword + vector search
-• Planner still fully LLM-driven
-
-
-------------------------------------------------------------
-🔷 ROADMAP
-------------------------------------------------------------
-
-Planned Next Steps:
-
-• PostgreSQL integration  
-• JWT-based authentication  
-• Workspace-user mapping  
-• Conversation persistence  
-• Hybrid search (vector + metadata)  
-• Planner heuristics improvement  
-• Frontend (React + TypeScript + Tailwind)  
-• External academic database integration (arXiv, PubMed)  
-
-
-------------------------------------------------------------
-🔷 PROJECT STATUS
-------------------------------------------------------------
-
-Backend Intelligence Layer: ~65%  
-RAG System: ~75%  
-Platform Infrastructure: ~30%  
-Frontend: 0%  
-Security Layer: 0%  
-
-
-------------------------------------------------------------
-🔷 HOW TO RUN
-------------------------------------------------------------
-
-1. Clone the repository
-2. Create virtual environment
-3. Install requirements
-4. Add GROQ_API_KEY to .env
-5. Run:
-
+DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/researchhub
+SECRET_KEY=your_secret_key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+5️⃣ Create Tables
+python create_tables.py
+6️⃣ Run Server
 uvicorn main:app --reload
 
 Open:
 
 http://127.0.0.1:8000/docs
+API Endpoints
+Authentication
 
+POST /auth/register
 
-------------------------------------------------------------
+POST /auth/login
 
-ResearchHub AI is under active development.
-The long-term goal is to build a fully autonomous academic research assistant platform.
+Workspaces
+
+POST /workspaces/
+
+GET /workspaces/
+
+DELETE /workspaces/{id}
+
+Papers
+
+POST /papers/{workspace_id}
+
+GET /papers/{workspace_id}
+
+Security
+
+JWT-based authentication
+
+OAuth2 password flow
+
+Workspace ownership enforcement
+
+Protected endpoints
+
+Project Status
+
+Backend Core Infrastructure: COMPLETE
+
+Next phases:
+
+RAG integration
+
+Paper content extraction
+
+AI Agent orchestration
+
+Frontend integration
+
+Maintainer
+
+Backend Core Engineer:
+Partha Kesav Reddy Chundi

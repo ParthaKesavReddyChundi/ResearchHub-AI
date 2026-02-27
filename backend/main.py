@@ -21,6 +21,10 @@ from routers import chat_router
 
 load_dotenv()
 
+# Auto-create all tables on startup (safe to call repeatedly)
+from database import init_db
+init_db()
+
 # Configure logging so all agents/services log properly
 logging.basicConfig(
     level=logging.INFO,
@@ -33,10 +37,10 @@ app = FastAPI(
     version="4.0"
 )
 
-# CORS middleware — allows frontend (any origin for dev) to call the API
+# CORS middleware — explicit origins required when credentials=True
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

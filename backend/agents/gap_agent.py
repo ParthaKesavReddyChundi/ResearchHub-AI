@@ -21,6 +21,7 @@ import json
 import logging
 from typing import Dict, Any
 from services.llm_service import call_llm_async
+from agents.system_prompt import GAP_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -47,22 +48,7 @@ class GapDetectionAgent:
         messages = [
             {
                 "role": "system",
-                "content": """
-                You are an expert Research Gap Analysis AI Agent.
-
-                You analyze structured research outputs to detect:
-                - Recurring limitations
-                - Underexplored research areas
-                - Missing evaluation benchmarks
-                - Conflicting findings
-                - Novel research opportunities
-
-                You must:
-                - Use ONLY provided context
-                - Not fabricate external information
-                - Return strictly valid JSON
-                - Avoid explanations outside JSON
-                """
+                "content": GAP_ROLE
             },
             {
                 "role": "user",

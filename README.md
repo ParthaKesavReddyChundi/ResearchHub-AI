@@ -1,143 +1,129 @@
 # ResearchHub AI
 
-## Overview
-
-ResearchHub AI is an Agentic AI-powered research assistant platform designed to automate research workflows.
-
-This repository currently contains the **Backend Core Infrastructure**, built using:
-
-- FastAPI
-- PostgreSQL
-- SQLAlchemy
-- JWT Authentication (OAuth2 Password Flow)
-
-The system provides:
-
-- Secure user authentication
-- Workspace management
-- Paper metadata management
-- Ownership-based access control
-- Modular API architecture
+An **Agentic AI-powered research assistant platform** that automates scientific reasoning workflows through multi-agent orchestration.
 
 ---
 
-# Backend Architecture
+## Project Structure
 
-
-backend/
+```
+ResearchHub-AI/
 │
-├── main.py
-├── database.py
-├── models.py
-├── schemas.py
-├── auth.py
-├── create_tables.py
+├── backend/              # FastAPI multi-agent analysis system
+│   ├── main.py           # FastAPI entry point (v4.0)
+│   ├── config.py         # Centralized env settings (Pydantic)
+│   ├── database.py       # SQLAlchemy + PostgreSQL
+│   ├── models.py         # DB models (users, workspaces, papers, analysis_results)
+│   ├── schemas.py        # Pydantic request/response schemas
+│   ├── auth.py           # JWT + bcrypt authentication
+│   ├── create_tables.py  # DB init script
+│   ├── test_pipeline.py  # End-to-end pipeline test
+│   ├── requirements.txt
+│   ├── routers/          # API endpoints (auth, workspace, paper, chat)
+│   ├── agents/           # 11 AI agents (summarizer, comparison, gap, etc.)
+│   │   └── orchestrator.py  # Master controller chaining all agents
+│   └── services/         # LLM, paper search (arXiv + PubMed), knowledge graph
 │
-├── routers/
-│ ├── auth_router.py
-│ ├── workspace_router.py
-│ ├── paper_router.py
+├── frontend/             # Streamlit UI
+│   ├── app.py            # Main Streamlit entry point
+│   ├── requirements.txt
+│   ├── api/              # Backend API client wrapper
+│   ├── components/       # Reusable UI components (cards, charts, animations, styles)
+│   └── views/            # Page views (login, dashboard, analysis, papers)
 │
-└── requirements.txt
-
+├── graph_rag/            # Graph RAG pipeline (PDF → Neo4j Knowledge Graph)
+│   ├── pipeline.py       # Full data ingestion pipeline
+│   ├── graph_rag.py      # Interactive Q&A system over the knowledge graph
+│   ├── test_pipeline.py  # Quick test (3 chunks only)
+│   ├── docker-compose.yml # Neo4j Docker setup
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── files/            # PDF files for ingestion
+│
+├── docs/                 # Documentation
+│   └── FRONTEND_PROMPT.md   # Frontend design specification
+│
+├── .env.example          # Environment variable template (all components)
+├── .gitignore
+└── README.md
+```
 
 ---
 
-# Database Schema
+## Components
 
-Tables:
+### 1. Backend — Multi-Agent Analysis System
 
-- users
-- workspaces
-- papers
-- conversations
+A FastAPI server with **11 AI agents** that analyze research topics and produce a **16-section deep analysis output**.
 
-Relationships:
+**Tech Stack:** FastAPI, PostgreSQL, SQLAlchemy, JWT Auth, Groq LLM (Llama 3.3)
 
-- One user → Many workspaces
-- One workspace → Many papers
-- Ownership enforced via JWT
-
----
-
-# Setup Guide
-
-## 1️⃣ Clone Repository
-
+**Setup:**
 ```bash
-git clone https://github.com/ParthaKesavReddyChundi/ResearchHub-AI.git
-cd ResearchHub-AI/backend
-2️⃣ Create Virtual Environment
+cd backend
 python -m venv venv
-venv\Scripts\activate
-3️⃣ Install Dependencies
+venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-4️⃣ Setup PostgreSQL
 
-Create a database named:
+# Create .env with:
+# DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/researchhub
+# SECRET_KEY=your_secret_key
+# GROQ_API_KEY=your_groq_api_key
 
-researchhub
-
-Create a .env file inside backend/ with:
-
-DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/researchhub
-SECRET_KEY=your_secret_key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-5️⃣ Create Tables
 python create_tables.py
-6️⃣ Run Server
 uvicorn main:app --reload
+```
 
-Open:
+**API Docs:** http://127.0.0.1:8000/docs
 
-http://127.0.0.1:8000/docs
-API Endpoints
-Authentication
+### 2. Frontend — Streamlit UI
 
-POST /auth/register
+A premium Streamlit interface connecting to the backend API.
 
-POST /auth/login
+**Setup:**
+```bash
+cd frontend
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-Workspaces
+### 3. Graph RAG Pipeline
 
-POST /workspaces/
+Standalone pipeline that ingests PDFs, extracts entities/relationships via LLM, and stores them in a Neo4j knowledge graph for Q&A.
 
-GET /workspaces/
+**Setup:**
+```bash
+cd graph_rag
 
-DELETE /workspaces/{id}
+# Start Neo4j via Docker
+docker compose up -d
 
-Papers
+# Create .env (copy from .env.example)
+pip install -r requirements.txt
 
-POST /papers/{workspace_id}
+# Run the ingestion pipeline
+python pipeline.py
 
-GET /papers/{workspace_id}
+# Interactive Q&A
+python graph_rag.py
+```
 
-Security
+---
 
-JWT-based authentication
+## API Endpoints
 
-OAuth2 password flow
+| Endpoint | Method | Description |
+|---|---|---|
+| `/auth/register` | POST | Register new user |
+| `/auth/login` | POST | Login (returns JWT) |
+| `/workspaces/` | POST/GET/DELETE | Workspace CRUD |
+| `/papers/{workspace_id}` | POST/GET | Paper upload & listing |
+| `/chat/analyze` | POST | Run 11-agent analysis pipeline |
+| `/chat/history/{workspace_id}` | GET | Analysis history |
+| `/chat/result/{analysis_id}` | GET | Full analysis result |
 
-Workspace ownership enforcement
+---
 
-Protected endpoints
+## Maintainer
 
-Project Status
-
-Backend Core Infrastructure: COMPLETE
-
-Next phases:
-
-RAG integration
-
-Paper content extraction
-
-AI Agent orchestration
-
-Frontend integration
-
-Maintainer
-
-Backend Core Engineer:
-Partha Kesav Reddy Chundi
+**Partha Kesav Reddy Chundi**

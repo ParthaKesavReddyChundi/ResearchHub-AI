@@ -25,12 +25,14 @@ PIPELINE DEPENDENCY GRAPH:
 """
 
 import asyncio
+import json
 import time
 import logging
 from typing import Dict, Any, List
 
 from services.paper_search import search_papers, PaperResult
 from services.knowledge_graph import KnowledgeGraphBuilder
+from services.llm_service import call_llm_async
 from agents.summarizer_agent import SummarizerAgent
 from agents.comparison_agent import ComparisonAgent
 from agents.insight_agent import InsightAgent
@@ -41,6 +43,7 @@ from agents.trend_agent import TrendAgent
 from agents.critique_agent import CritiqueAgent
 from agents.roadmap_agent import RoadmapAgent
 from agents.intent_router import IntentRouter
+from agents.system_prompt import ORCHESTRATOR_IDENTITY, FINAL_ANSWER_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +211,22 @@ class AgentOrchestrator:
         agents_activated.append("literature")
 
         # ========================================
+        # STEP 7.5: Final Simplified Answer
+        # A clean, layperson-readable synthesis of all outputs.
+        # ========================================
+        step_start = time.time()
+        try:
+            final_answer = await self._generate_final_answer(
+                query, summaries, comparison, insights, gaps,
+                novelty, trend, literature_review
+            )
+        except Exception as e:
+            logger.error(f"Final answer generation failed: {e}")
+            final_answer = "Unable to generate simplified answer."
+        timing_log["final_answer"] = round(time.time() - step_start, 2)
+        agents_activated.append("final_answer_synthesizer")
+
+        # ========================================
         # STEP 8: Assemble 16-Section Output
         # ========================================
         pipeline_time = round(time.time() - pipeline_start, 2)
@@ -287,6 +306,9 @@ class AgentOrchestrator:
 
             # Section 14: Literature Review
             "literature_review": literature_review,
+
+            # Section 14.5: Final Simplified Answer
+            "final_simplified_answer": final_answer,
 
             # Section 15: Confidence Score
             "confidence_score": confidence,
@@ -421,6 +443,65 @@ class AgentOrchestrator:
                     experiments.append(f"Explore: {combo.get('description', str(combo))}")
 
         return experiments if experiments else ["No specific experiments suggested — gap data was limited"]
+
+    async def _generate_final_answer(
+        self,
+        query: str,
+        summaries: Any,
+        comparison: Dict,
+        insights: Dict,
+        gaps: Dict,
+        novelty: Dict,
+        trend: Dict,
+        literature_review: str
+    ) -> str:
+        """
+        Generate a plain-English final simplified answer synthesizing
+        all prior agent outputs into 2-3 readable paragraphs.
+        """
+        # Build a concise context from key outputs
+        context_parts = []
+        context_parts.append(f"Query: {query}")
+
+        if isinstance(novelty, dict) and "overall_score" in novelty:
+            context_parts.append(f"Novelty Score: {novelty['overall_score']}/100")
+            context_parts.append(f"Novelty Explanation: {novelty.get('explanation', '')}")
+
+        if isinstance(comparison, dict) and "error" not in comparison:
+            context_parts.append(f"Key Similarities: {json.dumps(comparison.get('methodology_similarities', [])[:3])}")
+            context_parts.append(f"Key Differences: {json.dumps(comparison.get('methodology_differences', [])[:3])}")
+
+        if isinstance(gaps, dict) and "error" not in gaps:
+            context_parts.append(f"Research Gaps: {json.dumps(gaps.get('novel_research_directions', [])[:3])}")
+
+        if isinstance(trend, dict) and "error" not in trend:
+            context_parts.append(f"1-Year Predictions: {json.dumps(trend.get('one_year_predictions', [])[:3])}")
+
+        if isinstance(literature_review, str) and len(literature_review) > 100:
+            context_parts.append(f"Literature Review Summary: {literature_review[:500]}")
+
+        context_text = "\n".join(context_parts)
+
+        messages = [
+            {
+                "role": "system",
+                "content": FINAL_ANSWER_ROLE
+            },
+            {
+                "role": "user",
+                "content": f"""Based on all the research analysis below, write a clear
+Final Simplified Answer in 2-3 paragraphs that a layperson can understand.
+
+Cover: (1) what this research area is about, (2) key findings from the
+analysis, and (3) what a researcher should do next.
+
+{context_text}
+
+Write plain English. No JSON. No bullet points. Just 2-3 clear paragraphs."""
+            }
+        ]
+
+        return await call_llm_async(messages, max_tokens=1000)
 
     def _empty_result(self, query: str, reason: str) -> Dict[str, Any]:
         """Return a structured empty result when pipeline can't proceed."""

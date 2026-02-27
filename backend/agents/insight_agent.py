@@ -17,6 +17,7 @@ import json
 import logging
 from typing import List, Dict, Any, Union
 from services.llm_service import call_llm_async
+from agents.system_prompt import INSIGHT_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +44,7 @@ class InsightAgent:
         messages = [
             {
                 "role": "system",
-                "content": """
-                You are an expert Research Intelligence AI Agent.
-
-                You analyze structured research summaries and extract cross-paper insights.
-
-                You must:
-                - Use ONLY the provided summaries
-                - Not fabricate new information
-                - Not hallucinate external knowledge
-                - Return strictly valid JSON
-                """
+                "content": INSIGHT_ROLE
             },
             {
                 "role": "user",

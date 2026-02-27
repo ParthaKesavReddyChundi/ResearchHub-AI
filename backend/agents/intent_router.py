@@ -20,6 +20,7 @@ import json
 import logging
 from typing import Dict, Any, List
 from services.llm_service import call_llm_async
+from agents.system_prompt import INTENT_ROUTER_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +55,7 @@ class IntentRouter:
         messages = [
             {
                 "role": "system",
-                "content": """You classify research queries into types.
-Return strictly valid JSON only."""
+                "content": INTENT_ROUTER_ROLE
             },
             {
                 "role": "user",

@@ -18,6 +18,7 @@ import json
 import logging
 from typing import Dict, Any
 from services.llm_service import call_llm_async
+from agents.system_prompt import NOVELTY_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +49,7 @@ class NoveltyAgent:
         messages = [
             {
                 "role": "system",
-                "content": """You are a Research Novelty Assessment Engine.
-
-You evaluate how novel a research direction is by comparing it against
-existing published work. Be honest and precise in your scoring."""
+                "content": NOVELTY_ROLE
             },
             {
                 "role": "user",

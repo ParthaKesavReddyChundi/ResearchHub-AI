@@ -16,6 +16,7 @@ import json
 import logging
 from typing import Dict, Any
 from services.llm_service import call_llm_async
+from agents.system_prompt import TREND_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,7 @@ class TrendAgent:
         messages = [
             {
                 "role": "system",
-                "content": """You are a Research Trend Forecasting Engine.
-
-You analyze current research patterns and predict future directions.
-Base predictions on observable patterns in the data, not speculation."""
+                "content": TREND_ROLE
             },
             {
                 "role": "user",

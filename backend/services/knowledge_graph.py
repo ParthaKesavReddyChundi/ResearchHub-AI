@@ -20,6 +20,7 @@ import logging
 from typing import Dict, Any, List
 import networkx as nx
 from services.llm_service import call_llm_async
+from agents.system_prompt import KNOWLEDGE_GRAPH_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -70,12 +71,7 @@ class KnowledgeGraphBuilder:
         messages = [
             {
                 "role": "system",
-                "content": """You are a knowledge graph extraction engine.
-                
-Extract concepts, methods, datasets, problems, and findings as nodes,
-and their relationships as edges from research data.
-
-Return strictly valid JSON only."""
+                "content": KNOWLEDGE_GRAPH_ROLE
             },
             {
                 "role": "user",
@@ -93,7 +89,7 @@ Return JSON in this exact format:
         {{"id": "node_name", "type": "concept|method|dataset|problem|finding", "description": "brief description"}}
     ],
     "edges": [
-        {{"source": "node_name_1", "target": "node_name_2", "relationship": "supports|contradicts|improves|uses|evaluates_on"}}
+        {{"source": "node_name_1", "target": "node_name_2", "relationship": "supports|contradicts|improves|enables|uses|evaluates_on"}}
     ]
 }}
 

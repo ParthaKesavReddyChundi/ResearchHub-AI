@@ -2,6 +2,7 @@ import json
 import logging
 from typing import List, Dict, Any, Union
 from services.llm_service import call_llm_async
+from agents.system_prompt import LITERATURE_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -45,20 +46,7 @@ class LiteratureReviewAgent:
         messages = [
             {
                 "role": "system",
-                "content": """
-                You are an expert Research Intelligence AI Agent.
-
-                Your task is to generate a structured academic literature review
-                using ONLY the provided research analysis outputs.
-
-                Rules:
-                - Do NOT fabricate citations.
-                - Do NOT invent new studies.
-                - Use only the given structured data.
-                - Maintain academic tone.
-                - Avoid vague or creative language.
-                - Do NOT expose internal reasoning.
-                """
+                "content": LITERATURE_ROLE
             },
             {
                 "role": "user",

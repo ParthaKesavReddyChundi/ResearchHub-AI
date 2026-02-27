@@ -17,6 +17,7 @@ import json
 import logging
 from typing import Dict, Any
 from services.llm_service import call_llm_async
+from agents.system_prompt import ROADMAP_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +48,7 @@ class RoadmapAgent:
         messages = [
             {
                 "role": "system",
-                "content": """You are a Research Mentorship AI.
-
-You create actionable learning roadmaps for researchers who want to 
-enter a new field. Your plans should be practical, specific, and 
-achievable within 30 days."""
+                "content": ROADMAP_ROLE
             },
             {
                 "role": "user",

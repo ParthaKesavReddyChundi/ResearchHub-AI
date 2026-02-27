@@ -16,6 +16,7 @@ import json
 import logging
 from typing import List, Dict, Any
 from services.llm_service import call_llm_async
+from agents.system_prompt import SUMMARIZER_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class SummarizerAgent:
         messages = [
             {
                 "role": "system",
-                "content": "You are an expert academic research analyst."
+                "content": SUMMARIZER_ROLE
             },
             {
                 "role": "user",

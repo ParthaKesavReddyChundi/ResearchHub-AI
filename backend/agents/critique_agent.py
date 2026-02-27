@@ -21,6 +21,7 @@ import json
 import logging
 from typing import Dict, Any
 from services.llm_service import call_llm_async
+from agents.system_prompt import CRITIQUE_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,7 @@ class CritiqueAgent:
         messages = [
             {
                 "role": "system",
-                "content": """You are an expert Scientific Peer Review Engine.
-
-You critique research methodologies with the rigor of a top-tier 
-conference reviewer. You also evaluate whether claims are properly
-supported by evidence. Be fair but thorough."""
+                "content": CRITIQUE_ROLE
             },
             {
                 "role": "user",

@@ -16,6 +16,7 @@ import json
 import logging
 from typing import List, Dict, Any, Union
 from services.llm_service import call_llm_async
+from agents.system_prompt import COMPARISON_ROLE
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class ComparisonAgent:
         messages = [
             {
                 "role": "system",
-                "content": "You are an academic research comparison engine."
+                "content": COMPARISON_ROLE
             },
             {
                 "role": "user",

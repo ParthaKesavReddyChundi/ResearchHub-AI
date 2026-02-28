@@ -194,6 +194,370 @@ python graph_rag.py
 
 ---
 
+## 🚀 How to Run on Different Systems
+
+### 📥 Quick Start for Cloning from GitHub
+
+```bash
+# Clone the repository
+git clone https://github.com/ParthaKesavReddyChundi/ResearchHub-AI.git
+cd ResearchHub-AI
+
+# Follow the detailed setup instructions below based on your system
+```
+
+### 🖥️ Windows Setup
+
+#### Prerequisites
+- **Python 3.9+**: Download from [python.org](https://python.org)
+- **Node.js 16+**: Download from [nodejs.org](https://nodejs.org)
+- **PostgreSQL**: Download from [postgresql.org](https://postgresql.org) or use Docker
+- **Docker Desktop**: Download from [docker.com](https://docker.com)
+- **Git**: Download from [git-scm.com](https://git-scm.com)
+
+#### Step-by-Step Setup
+
+**1. Backend Setup (Windows)**
+```cmd
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create environment file
+copy .env.example .env
+
+# Edit .env file (use notepad or VS Code):
+# DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/researchhub
+# SECRET_KEY=your_secret_key_here
+# GROQ_API_KEY=your_groq_api_key
+
+# Initialize database
+python create_tables.py
+
+# Start backend server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**2. Frontend Setup (Windows)**
+```cmd
+# Open new terminal window
+cd frontend-ts
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+**3. Graph RAG Setup (Windows)**
+```cmd
+# Open new terminal window
+cd graph_rag
+
+# Start Neo4j container
+docker compose up -d
+
+# Create environment file
+copy .env.example .env
+
+# Edit .env file:
+# NEO4J_URI=bolt://localhost:7687
+# NEO4J_USER=neo4j
+# NEO4J_PASSWORD=your_neo4j_password
+# GROQ_API_KEY=your_groq_api_key
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run ingestion pipeline
+python pipeline.py
+```
+
+### 🐧 Linux Setup
+
+#### Prerequisites (Ubuntu/Debian)
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Python
+sudo apt install python3.9 python3.9-venv python3.9-dev -y
+
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install nodejs -y
+
+# Install PostgreSQL
+sudo apt install postgresql postgresql-contrib -y
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Git
+sudo apt install git -y
+```
+
+#### Step-by-Step Setup
+
+**1. Backend Setup (Linux)**
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python3.9 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env file (use nano or vim):
+# DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/researchhub
+# SECRET_KEY=your_secret_key_here
+# GROQ_API_KEY=your_groq_api_key
+nano .env
+
+# Initialize database
+python create_tables.py
+
+# Start backend server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**2. Frontend Setup (Linux)**
+```bash
+# Open new terminal
+cd frontend-ts
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+**3. Graph RAG Setup (Linux)**
+```bash
+# Open new terminal
+cd graph_rag
+
+# Start Neo4j container
+docker compose up -d
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env file:
+# NEO4J_URI=bolt://localhost:7687
+# NEO4J_USER=neo4j
+# NEO4J_PASSWORD=your_neo4j_password
+# GROQ_API_KEY=your_groq_api_key
+nano .env
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run ingestion pipeline
+python pipeline.py
+```
+
+### 🍎 macOS Setup
+
+#### Prerequisites
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Python
+brew install python@3.9
+
+# Install Node.js
+brew install node
+
+# Install PostgreSQL
+brew install postgresql
+brew services start postgresql
+
+# Install Docker
+brew install --cask docker
+
+# Install Git
+brew install git
+```
+
+#### Step-by-Step Setup
+
+**1. Backend Setup (macOS)**
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python3.9 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env file (use vim or nano):
+# DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/researchhub
+# SECRET_KEY=your_secret_key_here
+# GROQ_API_KEY=your_groq_api_key
+nano .env
+
+# Initialize database
+python create_tables.py
+
+# Start backend server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**2. Frontend Setup (macOS)**
+```bash
+# Open new terminal
+cd frontend-ts
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+**3. Graph RAG Setup (macOS)**
+```bash
+# Open new terminal
+cd graph_rag
+
+# Start Neo4j container
+docker compose up -d
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env file:
+# NEO4J_URI=bolt://localhost:7687
+# NEO4J_USER=neo4j
+# NEO4J_PASSWORD=your_neo4j_password
+# GROQ_API_KEY=your_groq_api_key
+nano .env
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run ingestion pipeline
+python pipeline.py
+```
+
+### 🐳 Docker Setup (All Systems)
+
+#### Using Docker Compose for Full Stack
+```bash
+# Clone repository
+git clone https://github.com/ParthaKesavReddyChundi/ResearchHub-AI.git
+cd ResearchHub-AI
+
+# Create environment files
+cp backend/.env.example backend/.env
+cp graph_rag/.env.example graph_rag/.env
+
+# Edit environment files with your credentials
+# DATABASE_URL, SECRET_KEY, GROQ_API_KEY, NEO4J credentials
+
+# Build and start all services
+docker-compose up --build
+
+# For development with hot reload
+docker-compose up --build --watch
+```
+
+### 🌐 Access Points After Setup
+
+Once all services are running:
+
+- **Frontend Application**: http://localhost:5173
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Neo4j Browser**: http://localhost:7474 (username: neo4j, password: your_neo4j_password)
+
+### 🔧 Common Troubleshooting
+
+#### Port Conflicts
+```bash
+# Check what's running on ports
+netstat -tulpn | grep :8000  # Linux
+netstat -ano | findstr :8000  # Windows
+lsof -i :8000  # macOS
+
+# Kill processes if needed
+sudo kill -9 <PID>  # Linux/macOS
+taskkill /PID <PID> /F  # Windows
+```
+
+#### Database Connection Issues
+```bash
+# Check PostgreSQL status
+sudo systemctl status postgresql  # Linux
+brew services list | grep postgresql  # macOS
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql  # Linux
+brew services restart postgresql  # macOS
+```
+
+#### Docker Issues
+```bash
+# Reset Docker
+docker system prune -a
+docker compose down -v
+docker compose up --build
+```
+
+#### Python Environment Issues
+```bash
+# Recreate virtual environment
+rm -rf venv
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+```
+
+### 📱 Verification Steps
+
+1. **Backend Check**: Visit http://localhost:8000/docs - should show FastAPI docs
+2. **Frontend Check**: Visit http://localhost:5173 - should show React app
+3. **Neo4j Check**: Visit http://localhost:7474 - should show Neo4j browser
+4. **Database Test**: Run `python test_pipeline.py` in backend directory
+5. **Graph RAG Test**: Run `python test_pipeline.py` in graph_rag directory
+
+### 🚀 Production Deployment
+
+For production deployment, see the [Deployment Options](#-deployment-options) section below.
+
+---
+
 ## 📡 API Documentation
 
 ### Core Endpoints
